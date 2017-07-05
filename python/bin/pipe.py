@@ -1,14 +1,11 @@
 #! /usr/bin/python
 
-'''
-Usage:
-    pipe
-
-'''
-
 from os import getcwd
 from os import path
 from os import system
+import click
+
+@click.group(chain=True, invoke_without_command)
 
 class run_pipe:
     def __init__(self):
