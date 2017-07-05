@@ -7,6 +7,7 @@ from RNAseq_lib import qc_info
 import fastqc_pipe_v2 as fastqc_pipe
 import star_mapping_pipe_v2 as star_mapping_pipe
 import rseqc_pipe as rseqc_pipe
+from RNAseq_lib import sepcies_annotation_path
 
 
 class prepare(luigi.Task):
@@ -127,8 +128,9 @@ class qc_collection(luigi.Task):
     SampleInf = luigi.Parameter()
     CleanDir = luigi.Parameter()
     OutDir = luigi.Parameter()
-    StarIndex = luigi.Parameter()
-    BedFile = luigi.Parameter()
+    species = luigi.Parameter()
+    database = luigi.Parameter(default='ensembl')
+    database_version = luigi.Parameter(default='')
 
     def requires(self):
         global SampleInf, CleanDir, OutDir, log_dir, sample_list, BedFile
@@ -136,8 +138,15 @@ class qc_collection(luigi.Task):
         SampleInf = self.SampleInf
         CleanDir = self.CleanDir
         OutDir = self.OutDir
-        BedFile = self.BedFile
-        StarIndex = self.StarIndex
+
+        # get genome annotation
+        sp_anno_inf = sepcies_annotation_path()
+        sp_anno_inf.sp_latin = self.species
+        sp_anno_inf.sp_database = self.database
+        sp_anno_inf.sp_db_version = self.database_version
+        sp_anno_inf.get_anno_inf()
+        BedFile = sp_anno_inf.bedfile
+        StarIndex = sp_anno_inf.star_index
         log_dir = path.join(OutDir, 'logs')
         qc_fq_dir = path.join(OutDir, 'qc_data')
         sample_list = [each.strip().split()[1] for each in open(SampleInf)]
