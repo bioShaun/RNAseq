@@ -1,3 +1,5 @@
+#! /usr/bin/python
+
 import click
 import os
 from click_default_group import DefaultGroup
@@ -24,6 +26,8 @@ class RNAseqScript(object):
         self.sample_inf = os.path.join(self.proj_dir, 'sample.ini')
         self.clean_dir = os.path.join(self.proj_dir, 'cleandata')
         self.proj_ini = os.path.join(self.proj_dir, 'project.ini')
+
+    def get_proj_base_inf(self):
         self.sample_number = len(open(self.sample_inf).readlines())
         proj_name_tmp = os.path.basename(self.proj_dir)
         self.species = proj_name_tmp.split('-')[2]
@@ -43,6 +47,7 @@ class RNAseqScript(object):
         return p_inf
 
     def qc(self):
+        self.get_proj_base_inf()
         '''
         generate qc analysis script
         '''
@@ -74,6 +79,7 @@ qc_pipe.py qc_collection \\
         return self.run_script_or_cmd(run_cmd)
 
     def pipe(self):
+        self.get_proj_base_inf()
         pipe_error = os.path.join(self.proj_dir, 'pipe.error')
         pipe_script = os.path.join(self.proj_dir, 'pipe.sh')
         pathlib.Path(pipe_error).touch()
@@ -265,8 +271,8 @@ class RunPipe(RNAseqModule):
 
 
 @click.group(chain=True, invoke_without_command=True, cls=DefaultGroup, default='next', default_if_no_args=True)
-@click.option('-f', '--force', is_flag=True)
-@click.option('-k', '--kegg_bg', type=str, default="")
+@click.option('-f', '--force', is_flag=True, help='run module ignore error message and dependency.')
+@click.option('-k', '--kegg_bg', type=str, default="", help='kegg background species, needed when use ko to annotate.')
 @click.pass_context
 def main(ctx, force, kegg_bg):
     if not os.path.exists(ctx.obj.proj_stat_file):
@@ -275,7 +281,7 @@ def main(ctx, force, kegg_bg):
     ctx.obj.kegg_bg = kegg_bg
 
 
-@main.command('stat')
+@main.command('stat', help='show pipeline running status.')
 @click.pass_context
 def pipe_status(ctx):
     done_jobs, run_jobs, todo_jobs = ctx.obj.project_status()
@@ -287,28 +293,28 @@ def pipe_status(ctx):
         click.secho(each_stat, fg='red', bold=True)
 
 
-@main.command('next')
+@main.command('next', help='run next undo module according to project.status.')
 @click.pass_context
 def next_setp(ctx):
     msg_stat, msg = ctx.obj.next_setp()
     click.secho(msg, fg=MESSAGE_STAT_COL[msg_stat], bold=True)
 
 
-@main.command('qc')
+@main.command('qc', help='run qc module.')
 @click.pass_context
 def qc(ctx):
     msg_stat, msg = ctx.obj.run_module('qc')
     click.secho(msg, fg=MESSAGE_STAT_COL[msg_stat], bold=True)
 
 
-@main.command('check_qc')
+@main.command('check_qc', help='check qc result.')
 @click.pass_context
 def check_qc(ctx):
     msg_stat, msg = ctx.obj.run_module('check_qc')
     click.secho(msg, fg=MESSAGE_STAT_COL[msg_stat], bold=True)
 
 
-@main.command('pipe')
+@main.command('pipe', help='run main pipeline.')
 @click.pass_context
 def pipe(ctx):
     msg_stat, msg = ctx.obj.run_module('pipe')
