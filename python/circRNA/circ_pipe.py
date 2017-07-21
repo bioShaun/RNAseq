@@ -65,48 +65,51 @@ if __name__ == '__main__':
         each_circ_parser.get_info()
         all_circ_dict.update(each_circ_parser.circ_dict)
 
-    # get miRNA binding info
-    mbs_df = pd.read_table(mbs_pred, header=None, index_col=1)
-    gene_name_des = pd.read_table(gene_name_des, index_col=0)
-    for each_circ in mbs_df.index:
-        if isinstance(mbs_df.loc[each_circ, 0], str):
-            all_circ_dict[each_circ].miRNA = [mbs_df.loc[each_circ, 0]]
-        else:
-            all_circ_dict[each_circ].miRNA = list(mbs_df.loc[each_circ, 0])
+    for each_circRNA in all_circ_dict:
+        print all_circ_dict[each_circRNA].bed
 
-    # add circRNA information
-    circRNA_inf_dict = {}
-    circ_list = all_circ_dict.keys()
-    for each_circ in circ_list:
-        each_circ_gene = all_circ_dict[each_circ].gene
-        each_circ_type = all_circ_dict[each_circ].type
-        each_circ_miRNAs = all_circ_dict[each_circ].miRNA
-        each_circ_miRNA_num = len(each_circ_miRNAs)
-        each_circ_miRNA_mbs = len(set(each_circ_miRNAs))
-        each_circ_miRNAs = ','.join(set(each_circ_miRNAs))
-        if each_circ_gene in gene_name_des.index:
-            each_circ_gene_name = gene_name_des.loc[each_circ_gene, 'gene_name']
-        else:
-            each_circ_gene_name = '--'
-        if not each_circ_miRNAs:
-            each_circ_miRNAs = '--'
-        circRNA_inf_dict.setdefault('circRNA_type', []).append(each_circ_type)
-        circRNA_inf_dict.setdefault(
-            'miRNA_binding_number', []).append(each_circ_miRNA_num)
-        circRNA_inf_dict.setdefault(
-            'miRNA_binding_site_number', []).append(each_circ_miRNA_mbs)
-        circRNA_inf_dict.setdefault('miRNA_ids', []).append(each_circ_miRNAs)
-        circRNA_inf_dict.setdefault(
-            'gene_name', []).append(each_circ_gene_name)
-    circRNA_inf_dict['circRNA_id'] = circ_list
-    circRNA_inf_df = pd.DataFrame(circRNA_inf_dict)
-    circ_exp_df = pd.read_table(circ_exp_matrix)
-    circ_exp_inf_df = pd.merge(circ_exp_df, circRNA_inf_df, left_on="chrom:beg-end",
-                               right_on="circRNA_id", how="left").drop('circRNA_id', axis=1)
-    circ_exp_matrix_name = path.basename(circ_exp_matrix)
-    circ_exp_matrix_dir = path.dirname(circ_exp_matrix)
-    circ_exp_matrix_name_pre, circ_exp_matrix_name_suf = path.splitext(
-        circ_exp_matrix_name)
-    circ_exp_inf_out_path = path.join(circ_exp_matrix_dir, '{0}.ann{1}'.format(
-        circ_exp_matrix_name_pre, circ_exp_matrix_name_suf))
-    circ_exp_inf_df.to_csv(circ_exp_inf_out_path, sep='\t', index=False)
+#    # get miRNA binding info
+#    mbs_df = pd.read_table(mbs_pred, header=None, index_col=1)
+#    gene_name_des = pd.read_table(gene_name_des, index_col=0)
+#    for each_circ in mbs_df.index:
+#        if isinstance(mbs_df.loc[each_circ, 0], str):
+#            all_circ_dict[each_circ].miRNA = [mbs_df.loc[each_circ, 0]]
+#        else:
+#            all_circ_dict[each_circ].miRNA = list(mbs_df.loc[each_circ, 0])
+#
+#    # add circRNA information
+#    circRNA_inf_dict = {}
+#    circ_list = all_circ_dict.keys()
+#    for each_circ in circ_list:
+#        each_circ_gene = all_circ_dict[each_circ].gene
+#        each_circ_type = all_circ_dict[each_circ].type
+#        each_circ_miRNAs = all_circ_dict[each_circ].miRNA
+#        each_circ_miRNA_num = len(each_circ_miRNAs)
+#        each_circ_miRNA_mbs = len(set(each_circ_miRNAs))
+#        each_circ_miRNAs = ','.join(set(each_circ_miRNAs))
+#        if each_circ_gene in gene_name_des.index:
+#            each_circ_gene_name = gene_name_des.loc[each_circ_gene, 'gene_name']
+#        else:
+#            each_circ_gene_name = '--'
+#        if not each_circ_miRNAs:
+#            each_circ_miRNAs = '--'
+#        circRNA_inf_dict.setdefault('circRNA_type', []).append(each_circ_type)
+#        circRNA_inf_dict.setdefault(
+#            'miRNA_binding_number', []).append(each_circ_miRNA_num)
+#        circRNA_inf_dict.setdefault(
+#            'miRNA_binding_site_number', []).append(each_circ_miRNA_mbs)
+#        circRNA_inf_dict.setdefault('miRNA_ids', []).append(each_circ_miRNAs)
+#        circRNA_inf_dict.setdefault(
+#            'gene_name', []).append(each_circ_gene_name)
+#    circRNA_inf_dict['circRNA_id'] = circ_list
+#    circRNA_inf_df = pd.DataFrame(circRNA_inf_dict)
+#    circ_exp_df = pd.read_table(circ_exp_matrix)
+#    circ_exp_inf_df = pd.merge(circ_exp_df, circRNA_inf_df, left_on="chrom:beg-end",
+#                               right_on="circRNA_id", how="left").drop('circRNA_id', axis=1)
+#    circ_exp_matrix_name = path.basename(circ_exp_matrix)
+#    circ_exp_matrix_dir = path.dirname(circ_exp_matrix)
+#    circ_exp_matrix_name_pre, circ_exp_matrix_name_suf = path.splitext(
+#        circ_exp_matrix_name)
+#    circ_exp_inf_out_path = path.join(circ_exp_matrix_dir, '{0}.ann{1}'.format(
+#        circ_exp_matrix_name_pre, circ_exp_matrix_name_suf))
+#    circ_exp_inf_df.to_csv(circ_exp_inf_out_path, sep='\t', index=False)

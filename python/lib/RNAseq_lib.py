@@ -88,6 +88,7 @@ PATHVIEW_CK = conf.get(server_name, 'pathview_ck')
 
 # Q
 QUANT_REPORT = conf.get(server_name, 'quant_report')
+QUANT_ANNO = conf.get(server_name, 'quant_anno')
 
 # R
 READ_DISTRIBUTION_PLOT_PREPARE = conf.get(

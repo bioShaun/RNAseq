@@ -207,7 +207,9 @@ class enrichment_collection(luigi.Task):
         ignore_files = ['.ignore', 'logs', 'kegg/blast_out',
                         'kegg/kegg_pathway_logs', '.report_files',
                         'report.go.table.txt', 'report.kegg.table.txt',
-                        '*png']
+                        'CC.GO.DAG.png', 'MF.GO.DAG.png', 'BP.GO.DAG.png',
+                        'go.enrichment.barplot.png',
+                        'kegg.enrichment.barplot.png', 'kegg.pathview.png']
         report_files_pattern = ['go/*/*go.enrichment.barplot.png', 'kegg/*/*kegg.enrichment.barplot.png',
                                 'go/*/DAG/ALL*png', 'go/*/*.ALL.go.enrichment.txt',
                                 'kegg/*/*ALL.kegg.enrichment.txt']

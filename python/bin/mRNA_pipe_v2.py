@@ -67,7 +67,10 @@ class quant(luigi.Task):
 
     def requires(self):
         out_dir = path.join(self.proj_dir, self.dir_name)
-        return quant_pipe.quant_collection(OutDir=out_dir, SampleInf=sample_inf, CleanDir=clean_dir, Transcript=transcript, Gene2Tr=gene_tr)
+        return quant_pipe.quant_collection(OutDir=out_dir, SampleInf=sample_inf,
+                                           CleanDir=clean_dir, Transcript=transcript,
+                                           Gene2Tr=gene_tr, Qvalue=qvalue,
+                                           LogFC=logfc)
 
     def run(self):
         with self.output().open('w') as quant_log_inf:
@@ -284,6 +287,8 @@ class run_pipe(luigi.Task):
     kegg_bg = luigi.Parameter(default='')
     database = luigi.Parameter(default='ensembl')
     database_version = luigi.Parameter(default='')
+    qvalue = luigi.Parameter(default=0.05)
+    logfc = luigi.Parameter(default=1)
 
     def requires(self):
 
@@ -316,6 +321,11 @@ class run_pipe(luigi.Task):
         genome_fa = sp_anno_inf.genome_fa
         geneme_fai = sp_anno_inf.geneme_fai
         gtf = sp_anno_inf.gtf
+
+        # quant module
+        global qvalue, logfc
+        qvalue = self.qvalue
+        logfc = self.logfc
 
         # enrich module annotation files
         global goseq_ano, topgo_ano, gene_len, kegg_abbr, kegg_bg, kegg_blast
