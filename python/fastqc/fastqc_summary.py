@@ -90,7 +90,7 @@ for each_sample in sample_list:
                     gc_flag = 0
                     n_flag = 0
                 if not eachline.startswith('#') and q30_flag == 1:
-                    if int(float(eachline_info[0])) > 30:
+                    if int(float(eachline_info[0])) >= 30:
                         sample_info_dict[each_sample][2] += int(
                             float(eachline_info[1]))
                     each_quality = int(eachline_info[0])

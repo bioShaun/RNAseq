@@ -32,11 +32,13 @@ def main(quant_dir, anno, pattern):
         for each_sfx in FILE_SUFFIX:
             if each_sfx in each_file:
                 # annotate table
-                each_file_df = pd.read_table(each_file, index_col=0, sep='\t')
+                each_file_path = os.path.join(quant_dir, each_file)
+                each_file_df = pd.read_table(
+                    each_file_path, index_col=0, sep='\t')
                 each_anno_file_df = pd.merge(each_file_df, anno_df,
                                              left_index=True, right_index=True,
                                              how='left')
-                anno_path = anno_file_path(each_file)
+                anno_path = anno_file_path(each_file_path)
                 each_anno_file_df.to_csv(anno_path, sep='\t')
 
 
