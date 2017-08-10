@@ -1,3 +1,5 @@
+#! /usr/bin/python
+
 import luigi
 from os import path
 from os import walk
@@ -7,6 +9,7 @@ from RNAseq_lib import run_cmd
 from RNAseq_lib import KALLISTO_TO_TABLE
 from RNAseq_lib import DIFF_ANALYSIS
 from RNAseq_lib import QUANT_REPORT
+from RNAseq_lib import QUANT_ANNO
 from RNAseq_lib import rsync_pattern_to_file
 from RNAseq_lib import txt_to_excel
 from python_tools import write_obj_to_file
@@ -108,20 +111,35 @@ class run_diff(luigi.Task):
         return kallisto_to_matrix(OutDir=OutDir)
 
     def run(self):
-        diff_cmd = ['Rscript',
-                    DIFF_ANALYSIS,
-                    '--kallisto_dir',
-                    '{}/kallisto'.format(OutDir),
-                    '--tpm_table',
-                    '{}/expression_summary/Gene.tpm.txt'.format(OutDir),
-                    '--compare',
-                    self.compare,
-                    '--sample_inf',
-                    SampleInf,
-                    '--gene2tr',
-                    Gene2Tr,
-                    '--out_dir',
-                    '{0}/differential_analysis/{1}'.format(OutDir, self.compare)]
+        diff_cmd = []
+        diff_cmd.append(['Rscript',
+                         DIFF_ANALYSIS,
+                         '--kallisto_dir',
+                         '{}/kallisto'.format(OutDir),
+                         '--tpm_table',
+                         '{}/expression_summary/Gene.tpm.txt'.format(OutDir),
+                         '--compare',
+                         self.compare,
+                         '--sample_inf',
+                         SampleInf,
+                         '--gene2tr',
+                         Gene2Tr,
+                         '--out_dir',
+                         '{0}/differential_analysis/{1}'.format(
+                             OutDir, self.compare),
+                         '--qvalue',
+                         str(Qvalue),
+                         '--logfc',
+                         str(LogFC)])
+
+        if Anno:
+            diff_cmd.append(['python',
+                             QUANT_ANNO,
+                             '-a',
+                             Anno,
+                             '-q',
+                             '{0}/differential_analysis/{1}'.format(
+                                 OutDir, self.compare)])
 
         diff_inf = run_cmd(diff_cmd)
         with self.output().open('w') as diff_log:
@@ -188,15 +206,21 @@ class quant_collection(luigi.Task):
     CleanDir = luigi.Parameter()
     Transcript = luigi.Parameter()
     Gene2Tr = luigi.Parameter()
+    Qvalue = luigi.Parameter(default=0.05)
+    LogFC = luigi.Parameter(default=1)
+    Anno = luigi.Parameter(default="")
 
     def requires(self):
         global OutDir, SampleInf, CleanDir, sample_list
         global Transcript, Gene2Tr, compare_name_list
+        global Qvalue, LogFC, Anno
         OutDir = self.OutDir
         SampleInf = self.SampleInf
         CleanDir = self.CleanDir
         Transcript = self.Transcript
         Gene2Tr = self.Gene2Tr
+        Qvalue = self.Qvalue
+        LogFC = self.LogFC
         group_sample_df = pd.read_table(
             self.SampleInf, header=None, index_col=0)
         compare_list = itertools.combinations(
@@ -208,12 +232,15 @@ class quant_collection(luigi.Task):
 
     def run(self):
         ignore_files = ['.ignore', 'logs', 'kallisto/*/run_info.json',
-                        '.report_files', 'Rplots.pdf']
+                        '.report_files', 'Rplots.pdf',
+                        'expression_summary/pdf.*',
+                        'expression_summary/html.*',
+                        'expression_summary/ALL.Volcano_plot.*']
         report_files_pattern = ['expression_summary/*.png',
-                        'differential_analysis/*/*png',
-                        'expression_summary/*Gene.tpm.txt',
-                        'expression_summary/*example.diff.table.txt',
-                        'differential_analysis/*/*.edgeR.DE_results.txt']
+                                'differential_analysis/*/*png',
+                                'expression_summary/*Gene.tpm.txt',
+                                'expression_summary/*example.diff.table.txt',
+                                'differential_analysis/*/*.edgeR.DE_results.txt']
         report_files = rsync_pattern_to_file(self.OutDir, report_files_pattern)
         report_ini = path.join(self.OutDir, '.report_files')
         write_obj_to_file(report_files, report_ini)
