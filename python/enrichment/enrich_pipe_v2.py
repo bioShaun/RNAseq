@@ -1,3 +1,5 @@
+#! /usr/bin/python
+
 import luigi
 from os import path
 from os import listdir
@@ -134,7 +136,7 @@ class run_go_barplot(luigi.Task):
             go_plot_logs.write(tmp)
 
     def output(self):
-        return luigi.LocalTarget('{}/logs/go_barplot.log'.format(OutDir))
+        return luigi.LocalTarget('{0}/logs/{1}_go_barplot.log'.format(OutDir, self.compare))
 
 
 class run_kegg_barplot(luigi.Task):
@@ -167,7 +169,7 @@ class run_kegg_barplot(luigi.Task):
             kegg_plog_logs.write(tmp)
 
     def output(self):
-        return luigi.LocalTarget('{}/logs/kegg_barplot.log'.format(OutDir))
+        return luigi.LocalTarget('{0}/logs/{1}_kegg_barplot.log'.format(OutDir, self.compare))
 
 
 class enrichment_collection(luigi.Task):
@@ -204,7 +206,10 @@ class enrichment_collection(luigi.Task):
     def run(self):
         ignore_files = ['.ignore', 'logs', 'kegg/blast_out',
                         'kegg/kegg_pathway_logs', '.report_files',
-                        'report.go.table.txt', 'report.kegg.table.txt']
+                        'report.go.table.txt', 'report.kegg.table.txt',
+                        'CC.GO.DAG.png', 'MF.GO.DAG.png', 'BP.GO.DAG.png',
+                        'go.enrichment.barplot.png',
+                        'kegg.enrichment.barplot.png', 'kegg.pathview.png']
         report_files_pattern = ['go/*/*go.enrichment.barplot.png', 'kegg/*/*kegg.enrichment.barplot.png',
                                 'go/*/DAG/ALL*png', 'go/*/*.ALL.go.enrichment.txt',
                                 'kegg/*/*ALL.kegg.enrichment.txt']

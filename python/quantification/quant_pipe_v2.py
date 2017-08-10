@@ -208,14 +208,21 @@ class quant_collection(luigi.Task):
     Gene2Tr = luigi.Parameter()
     Qvalue = luigi.Parameter(default=0.05)
     LogFC = luigi.Parameter(default=1)
+<<<<<<< HEAD
     Contrasts = luigi.Parameter(default='')
     Dispersion = luigi.Parameter(default=0.1)
+=======
+>>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
     Anno = luigi.Parameter(default="")
 
     def requires(self):
         global OutDir, SampleInf, CleanDir, sample_list
         global Transcript, Gene2Tr, compare_name_list
+<<<<<<< HEAD
         global Qvalue, LogFC, Anno, Contrasts, Dispersion
+=======
+        global Qvalue, LogFC, Anno
+>>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
         OutDir = self.OutDir
         SampleInf = self.SampleInf
         CleanDir = self.CleanDir
@@ -223,8 +230,11 @@ class quant_collection(luigi.Task):
         Gene2Tr = self.Gene2Tr
         Qvalue = self.Qvalue
         LogFC = self.LogFC
+<<<<<<< HEAD
         Contrasts = self.Contrasts
         Dispersion = self.Dispersion
+=======
+>>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
         group_sample_df = pd.read_table(
             self.SampleInf, header=None, index_col=0)
         if not Contrasts:
