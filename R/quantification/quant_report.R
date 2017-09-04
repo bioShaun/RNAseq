@@ -9,6 +9,7 @@ p <- add_argument(p, "--quant_dir", help = "quantification directory")
 p <- add_argument(p, "--sample_inf", help = "sample information with sample names and group names")
 p <- add_argument(p, "--qvalue", help = "diff gene qvalue cutoff", default = 0.05)
 p <- add_argument(p, "--logfc", help = "diff gene logfc cutoff", default = 1)
+p <- add_argument(p, "--contrasts", help = "file contain contrasts pairs", default = '')
 argv <- parse_args(p)
 
 MERGED_VOL_PLOT_NUM = 6
@@ -25,6 +26,7 @@ quant_dir <- argv$quant_dir
 sample_inf <- argv$sample_inf
 qvalue <- argv$qvalue
 logfc <- argv$logfc
+contrasts <- argv$contrasts
 
 samples <- read.delim(sample_inf, stringsAsFactors = F, header = F)
 colnames(samples) <- c("condition", "sample")
@@ -35,6 +37,12 @@ exp_dir <- file.path(quant_dir, "expression_summary/")
 
 diff_df_list = list()
 plot_number = min(c(16, dim(all_combine)[2]))
+
+if (contrasts != '') {
+  contrasts_df = read.delim(contrasts, stringsAsFactors = F, header = F)
+  contrasts_mtx = as.matrix(contrasts_df)
+  all_combine <- t(contrasts_mtx)
+}
 
 diff_genes <- c()
 for (i in seq(dim(all_combine)[2])) {

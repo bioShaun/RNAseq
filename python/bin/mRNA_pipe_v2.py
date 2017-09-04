@@ -51,12 +51,8 @@ class fastqc(luigi.Task):
 
     def requires(self):
         out_dir = path.join(self.proj_dir, self.dir_name)
-<<<<<<< HEAD
         return fastqc_pipe_v2.fastqc_collection(
             OutDir=out_dir, SampleInf=sample_inf, CleanDir=clean_dir)
-=======
-        return fastqc_pipe_v2.fastqc_collection(OutDir=out_dir, SampleInf=sample_inf, CleanDir=clean_dir)
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
 
     def run(self):
         with self.output().open('w') as fastqc_log_inf:
@@ -76,12 +72,8 @@ class quant(luigi.Task):
         return quant_pipe.quant_collection(OutDir=out_dir, SampleInf=sample_inf,
                                            CleanDir=clean_dir, Transcript=transcript,
                                            Gene2Tr=gene_tr, Qvalue=qvalue,
-<<<<<<< HEAD
                                            LogFC=logfc, Dispersion=dispersion,
                                            Contrasts=contrasts)
-=======
-                                           LogFC=logfc)
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
 
     def run(self):
         with self.output().open('w') as quant_log_inf:
@@ -98,12 +90,8 @@ class mapping(luigi.Task):
 
     def requires(self):
         out_dir = path.join(self.proj_dir, self.dir_name)
-<<<<<<< HEAD
         return star_mapping_pipe_v2.star_mapping_collection(
             OutDir=out_dir, IndexDir=star_index, SampleInf=sample_inf, CleanDir=clean_dir)
-=======
-        return star_mapping_pipe_v2.star_mapping_collection(OutDir=out_dir, IndexDir=star_index, SampleInf=sample_inf, CleanDir=clean_dir)
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
 
     def run(self):
         with self.output().open('w') as mapping_log_inf:
@@ -124,14 +112,10 @@ class enrich(luigi.Task):
     def run(self):
         out_dir = path.join(self.proj_dir, self.dir_name)
         quant_dir = path.join(self.proj_dir, 'quantification')
-<<<<<<< HEAD
         yield enrich_pipe.enrichment_collection(
             QuantDir=quant_dir, OutDir=out_dir, GoseqAnno=goseq_ano,
             TopgoAnno=topgo_ano, GeneLen=gene_len, KEGGAbbr=kegg_abbr,
             KEGGBackground=kegg_bg, KEGGBlast=kegg_blast, ReRun='no')
-=======
-        yield enrich_pipe.enrichment_collection(QuantDir=quant_dir, OutDir=out_dir, GoseqAnno=goseq_ano, TopgoAnno=topgo_ano, GeneLen=gene_len, KEGGAbbr=kegg_abbr, KEGGBackground=kegg_bg, KEGGBlast=kegg_blast, ReRun='no')
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
         with self.output().open('w') as enrich_log_inf:
             enrich_log_inf.write('enrichment finished!')
 
@@ -150,13 +134,9 @@ class rseqc(luigi.Task):
     def run(self):
         bam_dir = path.join(self.proj_dir, 'mapping', 'bam_dir')
         out_dir = path.join(self.proj_dir, self.dir_name)
-<<<<<<< HEAD
         yield rseqc_pipe.rseqc_collection(
             OutDir=out_dir, SampleInf=sample_inf,
             BamDir=bam_dir, BedFile=bedfile)
-=======
-        yield rseqc_pipe.rseqc_collection(OutDir=out_dir, SampleInf=sample_inf, BamDir=bam_dir, BedFile=bedfile)
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
         with self.output().open('w') as rseqc_log_inf:
             rseqc_log_inf.write('rseqc finished!')
 
@@ -175,13 +155,9 @@ class snp(luigi.Task):
     def run(self):
         bam_dir = path.join(self.proj_dir, 'mapping', 'bam_dir')
         out_dir = path.join(self.proj_dir, self.dir_name)
-<<<<<<< HEAD
         yield snp_pipe.snp_collection(
             OutDir=out_dir, SampleInf=sample_inf,
             BamDir=bam_dir, Ref=genome_fa)
-=======
-        yield snp_pipe.snp_collection(OutDir=out_dir, SampleInf=sample_inf, BamDir=bam_dir, Ref=genome_fa)
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
 
         with self.output().open('w') as snp_log_inf:
             snp_log_inf.write('snp finished!')
@@ -201,12 +177,8 @@ class splicing(luigi.Task):
     def run(self):
         bam_dir = path.join(self.proj_dir, 'mapping', 'bam_dir')
         out_dir = path.join(self.proj_dir, self.dir_name)
-<<<<<<< HEAD
         yield rmats_pipe.rmats_collection(
             OutDir=out_dir, SampleInf=sample_inf, BamDir=bam_dir, Gtf=gtf)
-=======
-        yield rmats_pipe.rmats_collection(OutDir=out_dir, SampleInf=sample_inf, BamDir=bam_dir, Gtf=gtf)
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
 
         with self.output().open('w') as splicing_log_inf:
             splicing_log_inf.write('splicing finished!')
@@ -316,41 +288,6 @@ def get_analysis_modules(module_name_list, proj_dir):
     return module_list, module_dirs
 
 
-class resize_pdf_plot(luigi.Task):
-
-    report_dir = luigi.Parameter()
-
-    def run(self):
-        resize_cmds_inf = resize_report_plot(self.report_dir)
-        with self.output().open('w') as resize_pdf_plot_log:
-            resize_pdf_plot_log.write(resize_cmds_inf)
-
-    def output(self):
-        return luigi.LocalTarget('{}/resize_pdf_plot.log'.format(log_dir))
-
-
-MODULE_DICT = {
-    'fastqc': fastqc,
-    'quantification': quant,
-    'mapping': mapping,
-    'enrichment': enrich,
-    'rseqc': rseqc,
-    'snp': snp,
-    'splicing': splicing
-}
-
-
-def get_analysis_modules(module_name_list, proj_dir):
-    module_list = []
-    module_dirs = []
-    for each_name in module_name_list:
-        each_module = MODULE_DICT[each_name](proj_dir=proj_dir)
-        each_module_dir = path.join(proj_dir, each_name)
-        module_list.append(each_module)
-        module_dirs.append(each_module_dir)
-    return module_list, module_dirs
-
-
 class run_pipe(luigi.Task):
 
     # read parameter
@@ -366,11 +303,8 @@ class run_pipe(luigi.Task):
     database_version = luigi.Parameter(default='')
     qvalue = luigi.Parameter(default=0.05)
     logfc = luigi.Parameter(default=1)
-<<<<<<< HEAD
     dispersion = luigi.Parameter(default=0.1)
     contrasts = luigi.Parameter(default='')
-=======
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
 
     def requires(self):
 
@@ -406,17 +340,11 @@ class run_pipe(luigi.Task):
         gtf = sp_anno_inf.gtf
 
         # quant module
-<<<<<<< HEAD
         global qvalue, logfc, dispersion, contrasts
         qvalue = self.qvalue
         logfc = self.logfc
         dispersion = self.dispersion
         contrasts = self.contrasts
-=======
-        global qvalue, logfc
-        qvalue = self.qvalue
-        logfc = self.logfc
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
 
         # enrich module annotation files
         global goseq_ano, topgo_ano, gene_len, kegg_abbr, kegg_bg, kegg_blast
@@ -457,12 +385,9 @@ class run_pipe(luigi.Task):
         yield [cp_analysis_result(each_folder, result_dir)
                for each_folder in analysis_folders]
         pdf_report_data_dir = path.join(report_dir, 'report_data')
-<<<<<<< HEAD
         yield [pdf_report_data(each_folder, pdf_report_data_dir)
                for each_folder in analysis_folders]
-=======
-        yield [pdf_report_data(each_folder, pdf_report_data_dir) for each_folder in analysis_folders]
->>>>>>> 75654a589d7e352df01dce1ed501194c7778ad73
+
         yield resize_pdf_plot(pdf_report_data_dir)
         with self.output().open('w') as analysis_log:
             analysis_log.write('analysis finished')

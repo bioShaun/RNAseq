@@ -34,6 +34,9 @@ class RNAseqScript(object):
         self.worker_number = min(self.sample_number, 5)
         self.database = proj_name_tmp.split('-')[3]
         self.database_version = proj_name_tmp.split('-')[4]
+        if self.database == 'ensembl':
+            self.database_version = 'release-{t.database_version}'.format(
+                t=self)
         self.kegg_bg = ""
 
     def run_script_or_cmd(self, s_or_c):
@@ -64,7 +67,9 @@ qc_pipe.py qc_collection \\
     --database-version {5} \\
     --workers {6} \\
 
-    '''.format(qc_dir, self.clean_dir, self.sample_inf, self.species, self.database, self.database_version, self.worker_number)
+    '''.format(qc_dir, self.clean_dir, self.sample_inf,
+               self.species, self.database,
+               self.database_version, self.worker_number)
         write_obj_to_file(script_inf, qc_script)
         return self.run_script_or_cmd(qc_script)
 
