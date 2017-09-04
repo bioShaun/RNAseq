@@ -208,12 +208,14 @@ class quant_collection(luigi.Task):
     Gene2Tr = luigi.Parameter()
     Qvalue = luigi.Parameter(default=0.05)
     LogFC = luigi.Parameter(default=1)
+    Contrasts = luigi.Parameter(default='')
+    Dispersion = luigi.Parameter(default=0.1)
     Anno = luigi.Parameter(default="")
 
     def requires(self):
         global OutDir, SampleInf, CleanDir, sample_list
         global Transcript, Gene2Tr, compare_name_list
-        global Qvalue, LogFC, Anno
+        global Qvalue, LogFC, Anno, Contrasts, Dispersion
         OutDir = self.OutDir
         SampleInf = self.SampleInf
         CleanDir = self.CleanDir
@@ -221,12 +223,23 @@ class quant_collection(luigi.Task):
         Gene2Tr = self.Gene2Tr
         Qvalue = self.Qvalue
         LogFC = self.LogFC
+        Anno = self.Anno
+        Contrasts = self.Contrasts
+        Dispersion = self.Dispersion
         group_sample_df = pd.read_table(
             self.SampleInf, header=None, index_col=0)
-        compare_list = itertools.combinations(
-            group_sample_df.index.unique(), 2)
-        compare_name_list = ['{0}_vs_{1}'.format(
-            each_compare[0], each_compare[1]) for each_compare in compare_list]
+        if not Contrasts:
+            compare_list = itertools.combinations(
+                group_sample_df.index.unique(), 2)
+            compare_name_list = ['{0}_vs_{1}'.format(
+                each_compare[0], each_compare[1])
+                for each_compare in compare_list]
+        else:
+            contrasts_df = pd.read_table(
+                Contrasts, header=None)
+            compare_name_list = ['{0}_vs_{1}'.format(contrasts_df.loc[i, 0],
+                                                     contrasts_df.loc[i, 1])
+                                 for i in contrasts_df.index]
         sample_list = [each.strip().split()[1] for each in open(SampleInf)]
         return report_data(OutDir=OutDir)
 

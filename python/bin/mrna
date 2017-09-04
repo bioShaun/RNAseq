@@ -1,1 +1,335 @@
-pipe2.py
+#! /usr/bin/python
+
+import click
+import os
+from click_default_group import DefaultGroup
+from datetime import datetime
+import subprocess
+import psutil
+import sys
+import pathlib
+from python_tools import write_obj_to_file
+
+PROJECT_FLOW = ('qc', 'check_qc', 'pipe')
+TIME_FLAG = datetime.today().strftime("%Y%m%d%H%M%S")
+MESSAGE_STAT_COL = {
+    'info': 'green',
+    'warning': 'yellow',
+    'error': 'red'
+}
+
+
+class RNAseqScript(object):
+
+    def __init__(self, proj_dir=os.getcwd()):
+        self.proj_dir = proj_dir
+        self.sample_inf = os.path.join(self.proj_dir, 'sample.ini')
+        self.clean_dir = os.path.join(self.proj_dir, 'cleandata')
+        self.proj_ini = os.path.join(self.proj_dir, 'project.ini')
+        self.sample_number = len(open(self.sample_inf).readlines())
+        proj_name_tmp = os.path.basename(self.proj_dir)
+        self.species = proj_name_tmp.split('-')[2]
+        self.proj_name = 'OM_mRNA_{}_{}'.format(
+            self.sample_number, self.species)
+        self.worker_number = min(self.sample_number, 5)
+        self.database = proj_name_tmp.split('-')[3]
+        self.database_version = proj_name_tmp.split('-')[4]
+        if self.database == 'ensembl':
+            self.database_version = 'release-{t.database_version}'.format(
+                t=self)
+        self.kegg_bg = ""
+
+    def run_script_or_cmd(self, s_or_c):
+        if os.path.isfile(s_or_c):
+            run_cmd = 'sh {0} > {0}.log.{1} 2>&1'.format(s_or_c, TIME_FLAG)
+        else:
+            run_cmd = s_or_c
+        p_inf = subprocess.Popen(run_cmd, shell=True, stdout=subprocess.PIPE)
+        return p_inf
+
+    def qc(self):
+        '''
+        generate qc analysis script
+        '''
+        qc_dir = os.path.join(self.proj_dir, 'qc')
+        qc_script = os.path.join(self.proj_dir, 'qc.sh')
+        qc_error = os.path.join(self.proj_dir, 'qc.error')
+        # remove in future
+        pathlib.Path(qc_error).touch()
+        script_inf = '''
+#! /bin/sh
+qc_pipe.py qc_collection \\
+    --OutDir {0} \\
+    --CleanDir {1} \\
+    --SampleInf {2} \\
+    --species {3} \\
+    --database {4} \\
+    --database-version {5} \\
+    --workers {6} \\
+
+    '''.format(qc_dir, self.clean_dir, self.sample_inf,
+               self.species, self.database,
+               self.database_version, self.worker_number)
+        write_obj_to_file(script_inf, qc_script)
+        return self.run_script_or_cmd(qc_script)
+
+    def check_qc(self):
+        qc_summary_file = os.path.join(self.proj_dir, 'qc', 'qc_check_out.txt')
+        check_qc_error = os.path.join(self.proj_dir, 'check_qc.error')
+        run_cmd = 'grep failed {0} > {1}'.format(
+            qc_summary_file, check_qc_error)
+        return self.run_script_or_cmd(run_cmd)
+
+    def pipe(self):
+        pipe_error = os.path.join(self.proj_dir, 'pipe.error')
+        pipe_script = os.path.join(self.proj_dir, 'pipe.sh')
+        pathlib.Path(pipe_error).touch()
+        pipe_inf = '''
+#! /bin/sh
+mRNA_pipe_v2.py run_pipe \\
+    --proj-name {0} \\
+    --proj-dir {1} \\
+    --clean-dir {2} \\
+    --sample-inf {3} \\
+    --species {4} \\
+    --workers {5} \\
+    --database {6} \\
+    --database-version {7} \\
+        '''.format(self.proj_name, self.proj_dir, self.clean_dir,
+                   self.sample_inf, self.species, self.worker_number,
+                   self.database, self.database_version)
+        if self.kegg_bg:
+            pipe_inf = '{0}    --kegg-bg {1} \\\n'.format(
+                pipe_inf, self.kegg_bg)
+        if self.contrasts:
+            pipe_inf = '{0}    --contrasts {1} \\\n'.format(
+                pipe_inf, self.kegg_bg)
+        write_obj_to_file(pipe_inf, pipe_script)
+        return self.run_script_or_cmd(pipe_script)
+
+
+class RNAseqModule(RNAseqScript):
+
+    def __init__(self, module_name="", proj_dir=os.getcwd()):
+        self.proj_dir = proj_dir
+        self.module = module_name
+        self.proj_stat_file = ""
+        self.proj_stat_dict = dict()
+        super(RNAseqModule, self).__init__()
+
+    def load(self):
+        execfile(self.proj_stat_file)
+        for each_mod in PROJECT_FLOW:
+            self.proj_stat_dict[each_mod] = locals()[each_mod]
+
+    def save(self):
+        with open(self.proj_stat_file, 'w') as proj_stat_inf:
+            for each_mod in PROJECT_FLOW:
+                proj_stat_inf.write('{0}={1}\n'.format(
+                    each_mod, self.proj_stat_dict[each_mod]))
+
+    def check_job(self, check_module=''):
+        '''
+        check if job is finished
+        '''
+        if not check_module:
+            check_module = self.module
+        module_stat = self.proj_stat_dict[check_module]
+        if isinstance(module_stat, bool):
+            return module_stat
+        elif isinstance(module_stat, int):
+            pids = psutil.pids()
+            if module_stat in pids:
+                return module_stat
+            else:
+                self.proj_stat_dict[check_module] = True
+                self.save()
+                self.load()
+                return True
+        else:
+            sys.exit('wrong module status:{0}:{1}'.format(
+                self.module, module_stat))
+
+    def check_depend(self, module=''):
+        error_inf = []
+        if not module:
+            module = self.module
+        module_index = PROJECT_FLOW.index(module)
+        dep_sat = True
+        dep_modules = []
+        if module_index > 0:
+            for m in range(module_index):
+                each_dep_module = PROJECT_FLOW[m]
+                self.check_job(each_dep_module)
+                if self.proj_stat_dict[each_dep_module] is not True:
+                    dep_modules.append(each_dep_module)
+                    dep_sat = False
+                else:
+                    each_error_log = os.path.join(
+                        self.proj_dir, '{}.error'.format(each_dep_module))
+                    if os.path.getsize(each_error_log) > 0:
+                        dep_sat = False
+                        error_inf.append(
+                            '\n---------- {} Error ----------'.format(each_dep_module))
+                        with open(each_error_log) as each_error_inf:
+                            for eachline in each_error_inf:
+                                error_inf.append(eachline.strip())
+        return dep_sat, dep_modules, error_inf
+
+    def depend_error(self, dep_modules, error_inf):
+        dep_message = ''
+        if error_inf:
+            dep_message = '========== Module Error! =========='
+            dep_message = '{0}\nShow top 20 error messages here! \nYou can find all error messge is in *.error file in [{1}] directory.'.format(
+                dep_message, self.proj_dir)
+            dep_message = '{0}\n{1}\n'.format(
+                dep_message, '\n'.join(error_inf[:20]))
+            dep_message = '{0}\n======================================\n'.format(
+                dep_message)
+        if dep_modules:
+            dep_message = '{0}\n========== Dependency not satisfied! =========='.format(
+                dep_message)
+            dep_message = '{0}\nDependent module [{1}] is(are) not finised!'.format(
+                dep_message, ','.join(dep_modules))
+            dep_message = '{0}\n===============================================\n'.format(
+                dep_message)
+        return 'error', dep_message
+
+    def run(self, module="", force=False):
+        self.load()
+        if not module:
+            module = self.module
+        module_now = self.proj_stat_dict[module]
+
+        def upload_cmd(module):
+            module_stat = getattr(self, module)()
+            self.proj_stat_dict[module] = module_stat.pid
+            self.save()
+            return 'info', 'run {}!'.format(module)
+
+        if force:
+            return upload_cmd(module)
+        if not module_now:
+            dep_satisfied, dep_modules, error_inf = self.check_depend(module)
+            if dep_satisfied:
+                return upload_cmd(module)
+            else:
+                return self.depend_error(dep_modules, error_inf)
+        else:
+            self.check_job(module)
+            module_now = self.proj_stat_dict[module]
+            if isinstance(module_now, bool):
+                return 'warning', '{} already finished!'.format(module)
+            elif isinstance(module_now, int):
+                return 'info', '{} is running!'.format(module)
+            else:
+                sys.exit('wrong module status:{0}:{1}'.format(
+                    module, module_now))
+
+
+class RunPipe(RNAseqModule):
+
+    def __init__(self):
+        super(RunPipe, self).__init__()
+        self.proj_dir = os.getcwd()
+        self.proj_stat_file = os.path.join(self.proj_dir, 'project.status')
+        self.proj_stat_dict = dict()
+        self.force = False
+
+    def init_project(self):
+        if not os.path.exists(self.proj_stat_file):
+            with open(self.proj_stat_file, 'w') as proj_stat_inf:
+                for each_mod in PROJECT_FLOW:
+                    proj_stat_inf.write('{0}=False\n'.format(each_mod))
+            return 'project init finished!'
+
+    def run_module(self, module_name):
+        return self.run(module_name, self.force)
+
+    def project_status(self):
+        self.load()
+        done_jobs = []
+        run_jobs = []
+        todo_jobs = []
+        for each_mod in PROJECT_FLOW:
+            self.check_job(each_mod)
+            if self.proj_stat_dict[each_mod]:
+                if self.proj_stat_dict[each_mod] is True:
+                    done_jobs.append('{} is DONE.'.format(each_mod))
+                else:
+                    run_jobs.append('{} is RUNNING.'.format(each_mod))
+            else:
+                todo_jobs.append('{} is TO BE DONE.'.format(each_mod))
+        return done_jobs, run_jobs, todo_jobs
+
+    # TODO
+    def next_setp(self):
+        self.load()
+        for n, each_mod in enumerate(reversed(PROJECT_FLOW)):
+            self.check_job(each_mod)
+            dep_satisfied, dep_modules, error_inf = self.check_depend(each_mod)
+            if (not self.force) and error_inf:
+                return self.depend_error(dep_modules, error_inf)
+            elif not dep_modules:
+                if n == 0:
+                    if self.proj_stat_dict[each_mod] is True:
+                        return 'info', 'all modules is DONE!'
+                return self.run_module(each_mod)
+
+
+@click.group(chain=True, invoke_without_command=True,
+             cls=DefaultGroup, default='next', default_if_no_args=True)
+@click.option('-f', '--force', is_flag=True)
+@click.option('-k', '--kegg_bg', type=str, default="")
+@click.option('-c', '--contrasts', type=click.Path(), default="")
+@click.pass_context
+def main(ctx, force, kegg_bg, contrasts):
+    if not os.path.exists(ctx.obj.proj_stat_file):
+        ctx.obj.init_project()
+    ctx.obj.force = force
+    ctx.obj.kegg_bg = kegg_bg
+    ctx.obj.contrasts = contrasts
+
+
+@main.command('stat')
+@click.pass_context
+def pipe_status(ctx):
+    done_jobs, run_jobs, todo_jobs = ctx.obj.project_status()
+    for each_stat in done_jobs:
+        click.secho(each_stat, fg='green', bold=True)
+    for each_stat in run_jobs:
+        click.secho(each_stat, fg='yellow', bold=True)
+    for each_stat in todo_jobs:
+        click.secho(each_stat, fg='red', bold=True)
+
+
+@main.command('next')
+@click.pass_context
+def next_setp(ctx):
+    msg_stat, msg = ctx.obj.next_setp()
+    click.secho(msg, fg=MESSAGE_STAT_COL[msg_stat], bold=True)
+
+
+@main.command('qc')
+@click.pass_context
+def qc(ctx):
+    msg_stat, msg = ctx.obj.run_module('qc')
+    click.secho(msg, fg=MESSAGE_STAT_COL[msg_stat], bold=True)
+
+
+@main.command('check_qc')
+@click.pass_context
+def check_qc(ctx):
+    msg_stat, msg = ctx.obj.run_module('check_qc')
+    click.secho(msg, fg=MESSAGE_STAT_COL[msg_stat], bold=True)
+
+
+@main.command('pipe')
+@click.pass_context
+def pipe(ctx):
+    msg_stat, msg = ctx.obj.run_module('pipe')
+    click.secho(msg, fg=MESSAGE_STAT_COL[msg_stat], bold=True)
+
+
+if __name__ == '__main__':
+    main(obj=RunPipe())
